@@ -18,7 +18,6 @@ class CharadesProcessor:
     def __init__(self):
         super(CharadesProcessor, self).__init__()
         self.idx_counter = 0
-        # self.tokenizer = DistilBertTokenizer.from_pretrained("/media/disk2/lja/MMN-main/bert")
 
     def reset_idx_counter(self):
         self.idx_counter = 0
@@ -29,14 +28,13 @@ class CharadesProcessor:
             line = line.lstrip().rstrip()
             if len(line) == 0:
                 continue
-            video_info, sentence = line.split('##')
+            video_info,qid, sentence = line.split('##')
             vid, start_time, end_time = video_info.split(' ')
             duration = float(charades[vid]['duration'])
             start_time = max(0.0, float(start_time))
             end_time = min(float(end_time), duration)
             words = word_tokenize(sentence.strip().lower(), language="english")
-            # queries, word_lens = bert_embedding(sentence.strip().lower(), self.tokenizer)
-            record = {'sample_id': self.idx_counter, 'vid': str(vid), 's_time': start_time, 'e_time': end_time,
+            record = {'sample_id': self.idx_counter, 'vid': str(vid),'qid':qid, 's_time': start_time, 'e_time': end_time,
                       'duration': duration, 'words': words}
             results.append(record)
             self.idx_counter += 1
@@ -49,9 +47,9 @@ class CharadesProcessor:
         # load raw data
         charades = load_json(os.path.join(data_dir, 'charades.json'))
         
-        train_data = load_lines(os.path.join(data_dir, 'charades_sta_train.txt'))
+        train_data = load_lines(os.path.join(data_dir, 'charades_sta_train_qid.txt'))
 
-        test_data = load_lines(os.path.join(data_dir, 'charades_sta_test.txt'))
+        test_data = load_lines(os.path.join(data_dir, 'charades_sta_test_qid.txt'))
         
         train_set = self.process_data(train_data, charades, scope='train')
         test_set = self.process_data(test_data, charades, scope='test')
@@ -72,14 +70,14 @@ class CharadesAMProcessor:
             line = line.lstrip().rstrip()
             if len(line) == 0:
                 continue
-            video_info, sentence = line.split('##')
+            video_info,qid, sentence = line.split('##')
             vid, start_time, end_time = video_info.split(' ')
             duration = float(charades[vid]['duration'])
             start_time = max(0.0, float(start_time))
             end_time = min(float(end_time), duration)
             words = word_tokenize(sentence.strip().lower(), language="english")
             
-            record = {'sample_id': self.idx_counter, 'vid': str(vid), 's_time': start_time, 'e_time': end_time,
+            record = {'sample_id': self.idx_counter, 'vid': str(vid),'qid':qid, 's_time': start_time, 'e_time': end_time,
                       'duration': duration, 'words': words}
             results.append(record)
             self.idx_counter += 1
@@ -92,9 +90,9 @@ class CharadesAMProcessor:
         # load raw data
         charades = load_json(os.path.join(data_dir, 'charades.json'))
         
-        train_data = load_lines(os.path.join(data_dir, 'charades_sta_train.txt'))
+        train_data = load_lines(os.path.join(data_dir, 'charades_sta_train_qid.txt'))
 
-        test_data = load_lines(os.path.join(data_dir, 'charades_audiomatter.txt'))
+        test_data = load_lines(os.path.join(data_dir, 'charades_audiomatter_qid.txt'))
         
         train_set = self.process_data(train_data, charades, scope='train')
         test_set = self.process_data(test_data, charades, scope='test')
@@ -113,11 +111,11 @@ class ActivityNetProcessor:
         results = []
         for vid, data_item in tqdm(data.items(), total=len(data), desc='process activitynet {}'.format(scope)):
             duration = float(data_item['duration'])
-            for timestamp, sentence in zip(data_item["timestamps"], data_item["sentences"]):
+            for timestamp, sentence,qid in zip(data_item["timestamps"], data_item["sentences"],data_item["qid"]):
                 start_time = max(0.0, float(timestamp[0]))
                 end_time = min(float(timestamp[1]), duration)
                 words = word_tokenize(sentence.strip().lower(), language="english")
-                record = {'sample_id': self.idx_counter, 'vid': str(vid), 's_time': start_time, 'e_time': end_time,
+                record = {'sample_id': self.idx_counter, 'vid': str(vid),'qid': str(qid),'s_time': start_time, 'e_time': end_time,
                           'duration': duration, 'words': words}
                 results.append(record)
                 self.idx_counter += 1
@@ -128,14 +126,14 @@ class ActivityNetProcessor:
         if not os.path.exists(data_dir):
             raise ValueError('data dir {} does not exist'.format(data_dir))
         # load raw data
-        train_data = load_json(os.path.join(data_dir, 'train.json'))
-        val_data = load_json(os.path.join(data_dir, 'val_2.json'))
-        test_data = load_json(os.path.join(data_dir, 'val_1.json'))
+        train_data = load_json(os.path.join(data_dir, 'train_qid.json'))
+        val_data = load_json(os.path.join(data_dir, 'val_2_qid.json'))
+        test_data = load_json(os.path.join(data_dir, 'val_1_qid.json'))
         # process data
         train_set = self.process_data(train_data, scope='train')
         val_set = self.process_data(val_data, scope='val')
         test_set = self.process_data(test_data, scope='test')
-        return train_set, val_set, test_set
+        return train_set, None, test_set
 
 
 def load_glove(glove_path):
@@ -202,7 +200,7 @@ def dataset_gen(data, vfeat_lens, word_dict, char_dict, max_pos_len, scope):
             char_id = [char_dict[char] if char in char_dict else char_dict[UNK] for char in word]
             word_ids.append(word_id)
             char_ids.append(char_id)
-        result = {'sample_id': record['sample_id'], 'vid': record['vid'], 's_time': record['s_time'],
+        result = {'sample_id': record['sample_id'], 'vid': record['vid'],'qid':record['qid'], 's_time': record['s_time'],
                   'e_time': record['e_time'], 'duration': record['duration'], 'words': record['words'],
                   's_ind': int(s_ind), 'e_ind': int(e_ind),'v_len': vfeat_lens[vid], 'w_ids': word_ids,
                   'c_ids': char_ids}
@@ -223,11 +221,9 @@ def gen_or_load_dataset(configs,new_json,old_json):
         feature_dir = os.path.join('data', 'features', 'charades', 'c3d_video')
     
     if configs.suffix is None:
-        save_path = os.path.join(configs.save_dir, '_multi_'.join([configs.task, str(configs.max_pos_len)]) +
-                                 '.pkl')
+        save_path = os.path.join(configs.save_dir,'_'.join([configs.task,configs.visual_features,str(configs.max_pos_len)]) +'.pkl')
     else:
-        save_path = os.path.join(configs.save_dir, '_multi_'.join([configs.task, str(configs.max_pos_len),
-                                                             configs.suffix]) + '.pkl')
+        save_path = os.path.join(configs.save_dir,'_'.join([configs.task,configs.visual_features,str(configs.max_pos_len),suffix])+'.pkl')
     if os.path.exists(save_path):
         dataset = load_pickle(save_path)
         return dataset

@@ -72,26 +72,88 @@ def load_video_features(root, max_position_length,audio_feature):
                 audio_feature[video_id]=rescale(audio_feature[video_id],new_feature)
             video_features[video_id] = new_feature
     return video_features,audio_feature # ['id': (numpy)feature]
-def load_video_clip_features(root, max_position_length,audio_feature):
+
+
+def load_i3d_video_features(root, max_position_length,audio_feature):
     video_features = dict()
-    fl=['charades_clip_mul_test_video.pickle','charades_clip_mul_train_video.pickle']
-    for filename in fl:
-        filename = os.path.join(root,filename)
-        with open(filename,"rb") as reader:
-            l=pickle.load(reader)
-            for i in tqdm(l.keys(), total=len(l.keys()), desc="load video features"):
-                video_id = i
-                feature = l[i].numpy()
-                if max_position_length is None:
-                    video_features[video_id] = feature
-                else:
-                    new_feature = visual_feature_sampling(feature, max_num_clips=max_position_length)
-                    if video_id in audio_feature:
-                        audio_feature[video_id]=rescale(audio_feature[video_id],new_feature)
-                    else:
-                        print("missing",video_id)
-                    video_features[video_id] = new_feature
+    vid_list=[]
+    filenames = glob.glob(os.path.join(root, "*.npy"))
+    for filename in tqdm(filenames, total=len(filenames), desc="load video features"):
+        video_id = filename.split("/")[-1].split(".")[0]
+        feature = np.load(filename)
+        if max_position_length is None:
+            video_features[video_id] = feature
+        else:
+            new_feature = visual_feature_sampling(feature, max_num_clips=max_position_length)
+            if video_id in audio_feature:
+                audio_feature[video_id]=rescale(audio_feature[video_id],new_feature)
+            video_features[video_id] = new_feature
     return video_features,audio_feature # ['id': (numpy)feature]
+
+def load_video_clip_sf_features(root, max_position_length,audio_feature):
+    sf_features = dict()
+    sf="slowfast_features"
+    sf_file=os.listdir(os.path.join(root,sf))
+    for i in tqdm(sf_file, total=len(sf_file), desc="load slow fast features"):
+        vid=i.split(".")[0]
+        filename=os.path.join(root,sf,i)
+        sf_features[vid]=np.load(filename)['features']
+
+    video_features = dict()
+    vroot=root+"/visual_features"
+    filenames = glob.glob(os.path.join(vroot, "*.npy"))
+    for filename in tqdm(filenames, total=len(filenames), desc="load clip video features"):
+        video_id = filename.split("/")[-1].split(".")[0]
+        feature = np.load(filename)
+        new_feature = visual_feature_sampling(feature, max_num_clips=max_position_length)
+        sf_features[video_id]=rescale(sf_features[video_id],new_feature)
+        new_feature = np.concatenate((sf_features[video_id],new_feature),axis=-1)
+        if video_id in audio_feature:
+            audio_feature[video_id]=rescale(audio_feature[video_id],new_feature)
+            video_features[video_id] = new_feature
+        else:
+            print("missing",video_id)
+        
+
+    text_features = dict()
+    troot=root+"/text_features"
+    filenames = glob.glob(os.path.join(troot, "*.npy"))
+    for filename in tqdm(filenames, total=len(filenames), desc="load clip text features"):
+        video_id = filename.split("/")[-1].split(".")[0]
+        feature = np.load(filename)
+        text_features[video_id] = feature
+
+    return video_features,audio_feature,text_features 
+
+def load_internvideo_features(root, max_position_length,audio_feature):
+    video_features = dict()
+
+    filenames = os.listdir(os.path.join(root,"visual_features_6b"))
+    for filename in tqdm(filenames, total=len(filenames), desc="load video features"):
+        filename = os.path.join(root,"visual_features_6b",filename)
+        video_id = filename.split("/")[-1].split(".")[0]
+        feature = torch.load(filename).numpy()
+        if max_position_length is None:
+            video_features[video_id] = feature
+        else:
+            new_feature = visual_feature_sampling(feature, max_num_clips=max_position_length)
+            if video_id in audio_feature:
+                audio_feature[video_id]=rescale(audio_feature[video_id],new_feature)
+            else:
+                print("missing",video_id)
+            video_features[video_id] = new_feature
+
+    text_features = dict()
+    fl = os.listdir(os.path.join(root,'llama2_txt'))
+    for filename in tqdm(fl, total=len(fl), desc="load llama2 text features"):
+        filename = os.path.join(root,"llama2_txt",filename)
+        tid = filename.split("/")[-1].split(".")[0]
+        tid = tid[:3]+"_"+tid[3:]
+        feature = torch.load(filename).numpy()
+        text_features[tid]=feature
+
+    return video_features,audio_feature,text_features 
+
 
 def load_audio_features(root, max_position_length, mode):
     if mode == 'VGGish':
@@ -99,18 +161,13 @@ def load_audio_features(root, max_position_length, mode):
     else:
         return load_audio_features_PANN(root, max_position_length)
 
-def fix_json(shape_json_v,shape_json_a,max_pos_len_v,max_pos_len_a):
+def fix_json(shape_json_v,shape_json_a):
     vfeat_lens = load_json(shape_json_v)
     afeat_lens = load_json(shape_json_a)
     new_shape_json={}
-    rate=1.0*(max_pos_len_v)/max_pos_len_a
-    minus=0
     for i in vfeat_lens.keys():
         if i not in afeat_lens.keys():
             continue
-        a_len=afeat_lens[i]*rate
-        v_len=vfeat_lens[i]
-
         new_shape_json[i]=vfeat_lens[i]
     return new_shape_json,vfeat_lens
 

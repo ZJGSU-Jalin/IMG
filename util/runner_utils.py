@@ -85,7 +85,7 @@ def eval_test(model, data_loader, device, mode='test', epoch=None, global_step=N
 
     with torch.no_grad():
         result_line=[]
-        for idx, (records, vfeats, vfeat_lens, afeats, word_ids, char_ids, s_labels, e_labels ) in tqdm(
+        for idx, (records, vfeats, vfeat_lens, afeats,tfeats, tfeat_lens, word_ids, char_ids, s_labels, e_labels ) in tqdm(
                 enumerate(data_loader), total=len(data_loader), desc='evaluate {}'.format(mode)):
             # prepare features
             vfeats, vfeat_lens = vfeats.to(device), vfeat_lens.to(device)
@@ -94,13 +94,14 @@ def eval_test(model, data_loader, device, mode='test', epoch=None, global_step=N
             # generate mask
             query_mask = (torch.zeros_like(word_ids) != word_ids).float().to(device)
             video_mask = convert_length_to_mask(vfeat_lens).to(device)
+            
             s_labels, e_labels = s_labels.to(device), e_labels.to(device)
-            
-            start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,parama = model(word_ids, char_ids, vfeats, video_mask, afeats,query_mask,1)
-            
-            # sum_a+=torch.sum(parama)
-
-            
+            if tfeats==None:
+                start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,parama = model(word_ids, char_ids, vfeats, video_mask, afeats,query_mask,1)
+            else:
+                tfeats, tfeat_lens = tfeats.to(device), tfeat_lens.to(device)
+                text_mask = convert_length_to_mask(tfeat_lens).to(device)
+                start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,parama = model(vfeats, video_mask, afeats,tfeats, text_mask,1)
     
 
             count+=start_logits_av.shape[0]

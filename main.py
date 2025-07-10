@@ -3,9 +3,10 @@ import argparse
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from model.IMGNet import IMGNet, build_optimizer_and_scheduler
-from util.data_util import load_video_features,load_video_clip_features, save_json, load_json, load_audio_features,fix_json
+from model.IMGNet import IMGNet,IMGNet4VLM, build_optimizer_and_scheduler
+from util.data_util import load_i3d_video_features,load_internvideo_features,load_video_clip_sf_features, save_json, load_json, load_audio_features,fix_json
 from util.data_gen import gen_or_load_dataset
+from util.data_gen_iv2 import gen_or_load_dataset_iv2
 from util.data_loader import get_train_loader, get_test_loader
 from util.runner_utils import set_th_config, convert_length_to_mask, eval_test, filter_checkpoints, \
     get_last_checkpoint, grader
@@ -25,7 +26,7 @@ parser.add_argument("--save_predictions",type=str,default=None,help='the path to
 
 # data parameters
 parser.add_argument('--save_dir', type=str, default='datasets', help='path to save processed dataset')
-parser.add_argument('--task', type=str, default='charades', help='target task, [charades|activitynet|charadesAM]')
+parser.add_argument('--task', type=str, default='charadesAM', help='target task, [charades|activitynet|charadesAM]')
 # predict clips are cut by visual
 parser.add_argument('--max_pos_len', type=int, default=128, help='maximal position sequence length allowed for Visual, 128 for c3d, 128*3 for VGG')
 parser.add_argument('--max_pos_len_a', type=int, default=128*3, help='maximal position sequence length allowed for Audio, 128 for VGGish, 128*3 for PANN')
@@ -40,9 +41,10 @@ parser.add_argument("--dim", type=int, default=128, help="hidden size")
 parser.add_argument("--num_heads", type=int, default=8, help="number of heads")
 parser.add_argument("--drop_rate", type=float, default=0.2, help="dropout rate")
 # training/evaluation parameters
-parser.add_argument("--highlight_lambda", type=float, default=5.0, help="lambda for highlight region")
+parser.add_argument('--visual_features', type=str, default='i3d', help='For visual features [i3d|clip+sf|iv2]')
+
 parser.add_argument("--gpu_idx", type=str, default="3", help="GPU index")
-parser.add_argument("--seed", type=int, default=12345, help="random seed set [None|number] ")
+parser.add_argument("--seed", type=int, default=None, help="random seed set [None|number] ")
 parser.add_argument("--mode", type=str, default="train", help="[train | test]")
 parser.add_argument("--epochs", type=int, default=100, help="number of epochs")
 parser.add_argument("--batch_size", type=int, default=16, help="batch size")
@@ -52,7 +54,7 @@ parser.add_argument("--clip_norm", type=float, default=1.0, help="gradient clip 
 parser.add_argument("--warmup_proportion", type=float, default=0.0, help="warmup proportion")
 parser.add_argument("--period", type=int, default=100, help="training loss print period")
 parser.add_argument('--model_dir', type=str, default='ckpt', help='path to save trained model weights')
-parser.add_argument('--model_name', type=str, default='IMGtest', help='model name')
+parser.add_argument('--model_name', type=str, default='IMG', help='model name')
 parser.add_argument('--suffix', type=str, default=None, help='set to the last `_xxx` in ckpt repo to eval results')
 parser.add_argument('--constractive', type=bool, default=False, help='consloss')
 parser.add_argument('--cons_lamb', type=float, default=1, help='consloss')
@@ -70,17 +72,32 @@ configs = parser.parse_args()
 
 if configs.task == 'charades' or configs.task == 'charadesAM':
     # I3D visual features
-    configs.video_feature_dim = 1024
     configs.tmp = 3
     configs.max_pos_len=128
     configs.our_loss_th = 0.2
     audio_features = load_audio_features(os.path.join('data', 'features', 'charades', "audio"), None, mode='PANN')
-    visual_features,audio_features = load_video_features("/media/disk2/lja/IMG_b/data/features/charades/i3d_video", configs.max_pos_len,audio_features)
-    # visual_features,audio_features = load_video_clip_features("/media/disk2/lja/charades_clip_features/charades_clip_unimodal", configs.max_pos_len,audio_features)
-    # PANNs audio features
+    if configs.visual_features=="i3d":
+        configs.video_feature_dim = 1024
+        visual_feature_path="data/features/charades/i3d_video"
+        visual_features,audio_features = load_i3d_video_features(visual_feature_path, configs.max_pos_len,audio_features)
+        new_json,old_json = fix_json(os.path.join('data', 'features', 'charades',"feature_shapes_i3d_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json"))
+    elif configs.visual_features=="iv2":
+        configs.max_pos_len=64
+        configs.video_feature_dim = 768
+        configs.text_feature_dim = 4096
+        visual_feature_path="data/features/charades/iv2_features"
+        visual_features,audio_features,text_features = load_internvideo_features(visual_feature_path, configs.max_pos_len,audio_features)
+        new_json,old_json = fix_json(os.path.join('data', 'features', 'charades',"feature_shapes_iv2_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json"))
+    elif configs.visual_features=="clip+sf":
+        configs.video_feature_dim = 2816
+        configs.text_feature_dim = 512
+        visual_feature_path="data/features/charades/clip_features"
+        visual_features,audio_features,text_features = load_video_clip_sf_features(visual_feature_path, configs.max_pos_len,audio_features)
+        new_json,old_json = fix_json(os.path.join('data', 'features', 'charades',"feature_shapes_clip_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json"))
+        
+        
     configs.max_pos_len_a = int(configs.max_pos_len*2)
     configs.audio_feature_dim = 2048
-    new_json,old_json = fix_json(os.path.join('data', 'features', 'charades',"feature_shapes_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json"),128,int(128*2))
 
 
 else:
@@ -89,11 +106,27 @@ else:
     configs.tmp = 2
     configs.our_loss_th=0.1
     audio_features = load_audio_features(os.path.join('data', 'features', configs.task, "audio/VGGish.pickle"), None ,mode='VGGish')
-    visual_features, audio_features  = load_video_features("/media/disk2/fwj/code/RaTSG-master/data/features/activitynet/i3d", configs.max_pos_len,audio_features)
+    if configs.visual_features=="i3d":
+        configs.video_feature_dim = 1024
+        visual_feature_path="data/features/activitynet/i3d_video"
+        visual_features,audio_features = load_i3d_video_features(visual_feature_path, configs.max_pos_len,audio_features)
+        new_json,old_json = fix_json(os.path.join('data', 'features', 'activitynet',"feature_shapes_i3d_v.json"),os.path.join('data', 'features', 'activitynet',"feature_shapes_a.json"))
+    # elif configs.visual_features=="iv2":
+    #     configs.video_feature_dim = 3200
+    #     configs.text_feature_dim = 4096
+    #     visual_feature_path="data/features/activitynet/iv2_features"
+    #     visual_features,audio_features = load_internvideo_feature(visual_feature_path, configs.max_pos_len,audio_features)
+    #     new_json,old_json = fix_json(os.path.join('data', 'features', 'activitynet',"feature_shapes_iv2_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json"))
+    ##no slowfast
+    # elif configs.visual_features=="clip+sf":
+    #     configs.video_feature_dim = 512
+    #     visual_feature_path="data/features/charades/charades_clip_unimodal"
+    #     visual_features,audio_features = load_video_clip_sf_features("/media/disk2/lja/charades_clip_features/charades_clip_unimodal", configs.max_pos_len,audio_features)
+    #     new_json,old_json = fix_json(os.path.join('data', 'features', 'activitynet',"feature_shapes_clip_v.json"),os.path.join('data', 'features', 'charades',"feature_shapes_a.json")))
     # VGGish audio features
     configs.max_pos_len_a = int(128/1.8)
     configs.audio_feature_dim = 128
-    new_json,old_json = fix_json(os.path.join('data', 'features', configs.task,"feature_shapes_nv.json"),os.path.join('data', 'features', configs.task,"feature_shapes_a.json"),128,128/1.8)
+   
 
 
 
@@ -102,12 +135,17 @@ set_th_config(configs.seed)
 exp_up=ExpUp(num_loops=configs.warm_epoch)
 p_up=ExpUp(num_loops=10)
 
-dataset = gen_or_load_dataset(configs,new_json,old_json)
+if configs.visual_features=="iv2":
+    dataset = gen_or_load_dataset_iv2(configs,new_json,old_json)
+else:
+    dataset = gen_or_load_dataset(configs,new_json,old_json)
 configs.char_size = dataset['n_chars']
 configs.word_size = dataset['n_words']
-train_loader = get_train_loader(dataset=dataset['train_set'], video_features=visual_features, audio_features=audio_features, configs=configs)
-val_loader = None if dataset['val_set'] is None else get_test_loader(dataset=dataset['val_set'], video_features=visual_features, audio_features=audio_features, configs=configs)
-test_loader = get_test_loader(dataset=dataset['test_set'], video_features=visual_features, audio_features=audio_features,configs=configs)
+if configs.visual_features == "i3d":
+    text_features=None
+train_loader = get_train_loader(dataset=dataset['train_set'], video_features=visual_features, audio_features=audio_features,text_features=text_features, configs=configs)
+val_loader = None if dataset['val_set'] is None else get_test_loader(dataset=dataset['val_set'], video_features=visual_features, audio_features=audio_features,text_features=text_features, configs=configs)
+test_loader = get_test_loader(dataset=dataset['test_set'], video_features=visual_features, audio_features=audio_features,text_features=text_features,configs=configs)
 configs.num_train_steps = len(train_loader) * configs.epochs
 num_train_batches = len(train_loader)
 num_val_batches = 0 if val_loader is None else len(val_loader)
@@ -118,7 +156,7 @@ cuda_str = 'cuda' if configs.gpu_idx is None else 'cuda:{}'.format(configs.gpu_i
 device = torch.device(cuda_str if torch.cuda.is_available() else 'cpu')
 
 # create model dir
-home_dir = os.path.join(configs.model_dir, '_'.join([configs.model_name, configs.task,
+home_dir = os.path.join(configs.model_dir, '_'.join([configs.model_name, configs.task,configs.visual_features,
                                                      'v_'+str(configs.max_pos_len), 'a_'+str(configs.max_pos_len_a)]))
 tb_writer=SummaryWriter(log_dir="runs/"+home_dir)
 if configs.suffix is not None:
@@ -133,7 +171,10 @@ if configs.mode.lower() == 'train':
     eval_period = num_train_batches // 2
     save_json(vars(configs), os.path.join(model_dir, 'configs.json'), sort_keys=True, save_pretty=True)
     # build model
-    model = IMGNet(configs=configs, word_vectors=dataset['word_vector']).to(device)
+    if text_features==None:
+        model = IMGNet(configs=configs, word_vectors=dataset['word_vector']).to(device)
+    else:
+        model = IMGNet4VLM(configs=configs, word_vectors=dataset['word_vector']).to(device)
     optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs) # warm_up and weight_reduce are related to num_train_steps
     # start training
     best_r1i7 = -1.0
@@ -159,19 +200,26 @@ if configs.mode.lower() == 'train':
             global_step += 1
             
             
-            _ , vfeats, vfeat_lens, afeats,  word_ids, char_ids, s_labels, e_labels,h_labels,pos,neg = data
+            _ , vfeats, vfeat_lens, afeats,tfeats, tfeat_lens,  word_ids, char_ids, s_labels, e_labels,h_labels,pos,neg = data
             # prepare features
             vfeats, vfeat_lens = vfeats.to(device), vfeat_lens.to(device)
             afeats= afeats.to(device)
             word_ids, char_ids = word_ids.to(device), char_ids.to(device)
             s_labels, e_labels,h_labels = s_labels.to(device), e_labels.to(device),h_labels.to(device)
             pos,neg=pos.to(device),neg.to(device)
+
             # generate mask
             query_mask = (torch.zeros_like(word_ids) != word_ids).float().to(device)
             video_mask = convert_length_to_mask(vfeat_lens).to(device)
             # compute logits
-            start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,param_a = \
-                model(word_ids, char_ids, vfeats, video_mask, afeats, query_mask,p_warm)
+            if tfeats!=None:
+                tfeats, tfeat_lens = tfeats.to(device), tfeat_lens.to(device)
+                text_mask = convert_length_to_mask(tfeat_lens).to(device)
+                start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,param_a = \
+                    model(vfeats, video_mask, afeats,tfeats, text_mask,p_warm)
+            else:
+                start_logits_av, end_logits_av,start_logits_v, end_logits_v,start_logits_a, end_logits_a,v_score,a_score,av_score,param_a = \
+                    model(word_ids, char_ids, vfeats, video_mask, afeats, query_mask,p_warm)
 
             loc_loss_av = model.compute_loss(start_logits_av, end_logits_av, s_labels, e_labels)
             loc_loss_v = model.compute_loss(start_logits_v, end_logits_v, s_labels, e_labels)

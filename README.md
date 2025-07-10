@@ -2,7 +2,7 @@
 Repo for ACM MM'25 paper "*Audio Does Matter: Importance-Aware Multi-Granularity Fusion for Video Moment Retrieval*". This paper proposes solutions for the Video Moment Retrieval task from an audio-visual collaborative perspective.
 
 
-![framework](figures/framework.jpeg)
+![framework](figures/framework.jpg)
 
 
 Ubuntu 20.04
@@ -21,25 +21,28 @@ conda env create -f env.yml
 
 2. Data Preparation
 
-Follow previous work [ADPN](https://github.com/hlchen23/ADPN-MM), we use GloVe-840B-300d for text embeddings, I3D visual features and PANNs audio features for Charades-STA dataset, and C3D visual features and VGGish audio features for ActivityNet Captions dataset. Download [data](https://pan.baidu.com/s/1LxdASuOzueq_4YpEr2muAA?pwd=5w4h), touch `IMG/data`, and ensure the following directory structure.
+Follow previous work [ADPN](https://github.com/hlchen23/ADPN-MM), we use GloVe-840B-300d for text embeddings, I3D visual features and PANNs audio features for Charades-STA dataset, and I3D visual features and VGGish audio features for ActivityNet Captions dataset. We have also prepared CLIP and intervideo2 features, the clip features are extracted by ourselves, while internvideo2 features is derived from [here](https://huggingface.co/cg1177). Download [Charades-STA](https://pan.baidu.com/s/1LxdASuOzueq_4YpEr2muAA?pwd=5w4h) to get Charades-STA features and Activitynet-Caption's audio features and json files, Download [Activitynet-Caption](https://mega.nz/folder/gv93jDSI#U9Qf1ZuKdP8cIJj5sdK0bw) to get Activitynet-Captions i3d features and glove, touch `IMG/data`, and ensure the following directory structure.
 
 ```
 |--data
 |  |--dataset
 |     |--activitynet
-|     |     |--train.json
-|     |     |--val_1.json
-|     |     |--val_2.json
+|     |     |--train_qid.json
+|     |     |--val_1_qid.json
+|     |     |--val_2_qid.json
 |     |--charades
-|     |     |--charades_sta_test.txt
-|     |     |--charades_sta_train.txt
+|     |     |--charades_sta_test_qid.txt
+|     |     |--charades_sta_train_qid.txt
 |     |     |--charades.json
-|     |     |--charades_audiomatter.json
+|     |     |--charades_audiomatter_qid.txt
+|     |     |--charades_sta_train_tvr_format.jsonl
+|     |     |--charades_sta_test_tvr_format.jsonl
+|     |     |--charades_audiomatter_test_tvr_format.jsonl
 |  |--features
 |     |--activitynet
 |     |     |--audio
 |     |     |     |--VGGish.pickle
-|     |     |--c3d_video
+|     |     |--i3d_video
 |     |     |     |--feature_shapes.json
 |     |     |     |--v___c8enCfzqw.npy
 |     |     |     |--...(*.npy)
@@ -51,13 +54,28 @@ Follow previous work [ADPN](https://github.com/hlchen23/ADPN-MM), we use GloVe-8
 |     |     |     |--feature_shapes.json
 |     |     |     |--0A8CF.npy
 |     |     |     |--...(*.npy)
+|     |     |--clip_features
+|     |     |     |--visual_features
+|     |     |     |     |--0A8CF.npy
+|     |     |     |     |--...(*.npy)
+|     |     |     |--slowfast_features
+|     |     |     |     |--0A8CF.npz
+|     |     |     |     |--...(*.npz)
+|     |     |     |--text_features
+|     |     |     |     |--qid_0.npy
+|     |     |     |     |--...(*.npy)
+|     |     |--iv2_features
+|     |     |     |--visual_features_6b
+|     |     |     |     |--0A8CF.pt
+|     |     |     |     |--...(*.pt)
+|     |     |     |--llama2_txt
+|     |     |     |     |--qid0.pt
+|     |     |     |     |--...(*.pt)
 ```
 
 
 
 3. Training
-
-Train
 
 ```bash
 python main.py --task <charades|activitynet|charadesAM> --mode train --gpu_idx <GPU INDEX>

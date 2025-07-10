@@ -5,7 +5,6 @@
 AMT7R 4.3 12.5##a person is putting a picture onto the wall.
 GBD1Y 26.2 31.3##person closes the door.
 GBD1Y 26.2 31.3##person closing the door.
-9JZO2 26.1 36.0##person put on their shoes.
 9JZO2 0.0 12.6##a person eats some food.
 9JZO2 0.0 15.1##a person is in a entryway eating a sandwich.
 9JZO2 0.0 15.1##person eating a sandwich.
@@ -91,16 +90,12 @@ U2AO1 10.5 17.0##the person eats it.
 9LWQ6 11.0 21.0##person takes off their shoes.
 YNWMW 0.0 5.2##a person eats some food.
 YNWMW 0.0 5.2##a person is in a basement eating.
-EEVD3 18.4 32.0##person begins to eat it.
 EEVD3 2.0 7.9##a person is holding the door to the refrigerator open.
 EEVD3 11.4 16.9##person closing the door.
 EEVD3 18.4 32.0##person removes a snack to eat.
-EEVD3 18.4 32.0##person eat the food.
 EEVD3 18.4 32.0##person they begin eating the fruit.
 EEVD3 18.4 32.0##person begins to eat it.
-EEVD3 18.4 32.0##person removes a snack to eat.
 EEVD3 18.4 32.0##person eat the food.
-EEVD3 18.4 32.0##person they begin eating the fruit.
 BFCU9 0.2 5.3##a person is eating from a can.
 BFCU9 0.2 5.3##a person eats something from a jar.
 BFCU9 3.2 8.4##person the put the food down.
@@ -387,7 +382,6 @@ NACLT 12.6 21.0##person runs out.
 8RU1Q 0.0 4.4##a person opens a door.
 8RU1Q 0.0 4.4##a person opens the door.
 J5DOP 26.2 31.0##person walks into the kitchen to open the refrigerator door.
-J5DOP 25.8 31.0##person opening the door.
 J5DOP 25.8 31.0##person opening the door.
 H46LQ 23.5 29.1##person they stand up.
 Y0MCG 4.9 10.8##a person puts a pillow down on the sofa.
@@ -1025,7 +1019,6 @@ EDSUD 19.8 24.5##a person throws their shoes on the hallway floor.
 ZPRJH 12.4 18.4##person throws the book down.
 HIKIC 11.8 22.4##person talking on phone.
 T96JC 4.8 14.4##person takes a vacuum.
-CIUVA 52.1 55.0##the person puts a dish into the strainer.
 CIUVA 46.5 55.0##person opened the refrigerator.
 CIUVA 52.1 55.0##the person puts a dish into the strainer.
 3IS9Y 21.3 27.7##person closed a wooden box twice.

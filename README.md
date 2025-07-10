@@ -21,7 +21,7 @@ conda env create -f env.yml
 
 2. Data Preparation
 
-Follow previous work [ADPN](https://github.com/hlchen23/ADPN-MM), we use GloVe-840B-300d for text embeddings, I3D visual features and PANNs audio features for Charades-STA dataset, and I3D visual features and VGGish audio features for ActivityNet Captions dataset. We have also prepared CLIP and intervideo2 features, the clip features are extracted by ourselves, while internvideo2 features is derived from [here](https://huggingface.co/cg1177). Download [Charades-STA](https://pan.baidu.com/s/1LxdASuOzueq_4YpEr2muAA?pwd=5w4h) to get Charades-STA features and Activitynet-Caption's audio features and json files, Download [Activitynet-Caption](https://mega.nz/folder/gv93jDSI#U9Qf1ZuKdP8cIJj5sdK0bw) to get Activitynet-Captions i3d features and glove, touch `IMG/data`, and ensure the following directory structure.
+Follow previous work [ADPN](https://github.com/hlchen23/ADPN-MM), we use GloVe-840B-300d for text embeddings, I3D visual features and PANNs audio features for Charades-STA dataset, and I3D visual features and VGGish audio features for ActivityNet Captions dataset. We have also prepared CLIP and intervideo2 features, the clip features are extracted by ourselves, while internvideo2 features is derived from [here](https://huggingface.co/cg1177). Download [here](https://drive.google.com/drive/folders/1yu9-7SFVUKCbO1dgMcODGdaE1mIBkDsC?usp=sharing) to get Charades-STA features and Activitynet-Caption's audio features and json files, Download [here](https://mega.nz/folder/gv93jDSI#U9Qf1ZuKdP8cIJj5sdK0bw) to get Activitynet-Captions i3d features and glove embeddings, touch `IMG/data/features`, and ensure the following directory structure.
 
 ```
 |--data
